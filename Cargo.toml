@@ -1,0 +1,18 @@
+[package]
+name = "rust-topcoat-playground"
+edition = "2024"
+license = "MIT"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.debugging]
+inherits = "dev"
+debug = true
