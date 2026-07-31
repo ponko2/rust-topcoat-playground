@@ -21,6 +21,20 @@
       ];
       perSystem =
         { pkgs, system, ... }:
+        let
+          topcoat-cli = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
+            pname = "topcoat-cli";
+            version = "0.5.0";
+            src = pkgs.fetchCrate {
+              inherit (finalAttrs) pname version;
+              hash = "sha256-Z/Z9KCIj6M36MvKOpC3b0S24MPpov2nQCdNCg1Fp98U=";
+            };
+            cargoHash = "sha256-9KeF31rlUp5EuirfvIN7Cs0KUuZFvirYyQWFB4Ud5CE=";
+            cargoTestFlags = [
+              "--lib"
+            ];
+          });
+        in
         {
           _module.args.pkgs = import inputs.nixpkgs {
             inherit system;
@@ -65,6 +79,7 @@
               oxfmt
               rust-analyzer
               statix
+              topcoat-cli
               yamllint
             ];
           };
