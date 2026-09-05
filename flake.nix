@@ -26,6 +26,21 @@
             file = ./rust-toolchain.toml;
             sha256 = "p8h3Sl/YRByZfZTAKXdsvF6xEenXKrXSVvpphmZENH4=";
           };
+          rust-platform = pkgs.makeRustPlatform {
+            cargo = rust-toolchain;
+            rustc = rust-toolchain;
+          };
+          topcoat-cli = rust-platform.buildRustPackage (finalAttrs: {
+            pname = "topcoat-cli";
+            version = "0.7.0";
+            src = pkgs.fetchCrate {
+              inherit (finalAttrs) pname version;
+              hash = "sha256-y1GWV4Wq62DOKIi6F5rilMo8IT74rJpXPt7rmVj1OPM=";
+            };
+            cargoHash = "sha256-gwHxCc72PVD9E0El6OhX0SD92c7Y05fWG5lBP8tJcok=";
+            cargoTestFlags = [ "--locked" ];
+            doCheck = false;
+          });
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
@@ -72,6 +87,7 @@
               rust-analyzer
               rust-toolchain
               statix
+              topcoat-cli
               yamllint
             ];
           };
