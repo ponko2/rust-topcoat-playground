@@ -23,6 +23,13 @@ steps {
       effect = "write"
     }
   }
+  ["topcoat"] {
+    glob = "**/*.rs"
+    fix = new CommandSpec {
+      command = new Command { argv = List("topcoat", "fmt", "{{files}}") }
+      effect = "write"
+    }
+  }
   ["yamllint"] = Builtins.yamllint
   ["zizmor"] = Builtins.zizmor
 }
