@@ -1074,6 +1074,7 @@ dependencies = [
 name = "rust-topcoat-playground"
 version = "0.1.0"
 dependencies = [
+ "tokio",
  "topcoat",
 ]
 
