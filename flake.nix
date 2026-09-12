@@ -30,13 +30,24 @@
             cargo = rust-toolchain;
             rustc = rust-toolchain;
           };
+          topcoat-cli = rust-platform.buildRustPackage (finalAttrs: {
+            pname = "topcoat-cli";
+            version = "0.8.0";
+            src = pkgs.fetchCrate {
+              inherit (finalAttrs) pname version;
+              hash = "sha256-j0jxF+5gKPo+5XIorN4yL7p5CSak4xzRNoTK2BGbY3Q=";
+            };
+            cargoHash = "sha256-f/2O4Fj/jqJfa7mml7xi2aZrd2PgaPeThJHi4cqrdJo=";
+            cargoTestFlags = [ "--locked" ];
+            doCheck = false;
+          });
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [
               fenix.overlays.default
-              (final: prev: {
+              (_final: prev: {
                 hk = prev.hk.overrideAttrs (oldAttrs: rec {
                   version = "2.0.1";
                   src = prev.fetchFromGitHub {
@@ -90,6 +101,7 @@
               rust-analyzer
               rust-toolchain
               statix
+              topcoat-cli
               yamllint
             ];
           };
