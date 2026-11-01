@@ -1,0 +1,22 @@
+[env]
+_.nix = true
+
+[plugins]
+nix = "https://github.com/joshbode/mise-nix"
+
+[settings]
+env_cache = true
+
+[tools]
+"aqua:owenlamont/ryl" = "latest"
+"npm:@commitlint/cli" = "latest"
+editorconfig-checker = "latest"
+hk = "latest"
+jactionlint = "latest"
+mr-boxington = "latest"
+oxfmt = "latest"
+shellcheck = "latest"
+
+[wrappers.cargo]
+command = "mbx"
+env = { MBX_CARGO_SHIM_MODE = "1" }
