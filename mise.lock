@@ -111,6 +111,11 @@ version = "2.1.5"
 backend = "cargo:cargo-sort"
 specifiers = ["latest"]
 
+[[tools."cargo:topcoat-cli"]]
+version = "0.12.1"
+backend = "cargo:topcoat-cli"
+specifiers = ["latest"]
+
 [[tools.editorconfig-checker]]
 version = "4.0.2"
 backend = "github:editorconfig-checker/editorconfig-checker"

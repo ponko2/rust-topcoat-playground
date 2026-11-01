@@ -21,6 +21,11 @@ version = "latest"
 lazy = true
 lazy_bins = ["cargo-features"]
 
+[tools."cargo:topcoat-cli"]
+version = "latest"
+lazy = true
+lazy_bins = ["topcoat"]
+
 [wrappers.cargo]
 command = "mbx"
 env = { MBX_CARGO_SHIM_MODE = "1" }
