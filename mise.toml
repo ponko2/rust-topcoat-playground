@@ -1,0 +1,21 @@
+[settings]
+idiomatic_version_file_enable_tools = ["rust"]
+
+[tools]
+"aqua:owenlamont/ryl" = "latest"
+"cargo:cargo-features-manager" = "latest"
+"cargo:cargo-nextest" = "latest"
+"cargo:cargo-shear" = "latest"
+"cargo:cargo-sort" = "latest"
+"npm:@commitlint/cli" = "latest"
+editorconfig-checker = "latest"
+hk = "latest"
+jactionlint = "latest"
+mr-boxington = "latest"
+oxfmt = "latest"
+rust-analyzer = "latest"
+shellcheck = "latest"
+
+[wrappers.cargo]
+command = "mbx"
+env = { MBX_CARGO_SHIM_MODE = "1" }

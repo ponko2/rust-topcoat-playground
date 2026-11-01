@@ -1,0 +1,316 @@
+name: CI
+on:
+  merge_group: {}
+  pull_request: {}
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+permissions: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  required:
+    name: "Required Checks: CI"
+    if: ${{ always() }}
+    needs:
+      - changed-files
+      - jactionlint
+      - build
+      - clippy
+      - commitlint
+      - editorconfig
+      - oxfmt
+      - rustfmt
+      - ryl
+      - shear
+      - test
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    steps:
+      - name: Fail if any required jobs failed or cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
+        shell: bash
+  changed-files:
+    name: Get changed files
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      # reference: https://github.com/tj-actions/changed-files#outputs-
+      jactionlint: ${{ steps.changed-files.outputs.jactionlint_any_modified == 'true' }}
+      rust: ${{ steps.changed-files.outputs.rust_any_modified == 'true' }}
+      ryl: ${{ steps.changed-files.outputs.ryl_any_modified == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 50 # Assume PRs are less than 50 commits
+          persist-credentials: true
+      - name: Get relevant files changed per group
+        id: changed-files
+        uses: tj-actions/changed-files@v47.0.6
+        with:
+          files_yaml: |
+            common: &common
+              - .github/workflows/ci.yml
+            dependencies: &dependencies
+              - mise.lock
+              - mise.toml
+            jactionlint:
+              - *dependencies
+              - "**/action.{yaml,yml}"
+              - ".github/workflows/*.{yaml,yml}"
+              - .github/jactionlint.yaml
+            rust:
+              - *common
+              - *dependencies
+              - "**/*.rs"
+              - "**/Cargo.toml"
+              - Cargo.lock
+              - rust-toolchain.toml
+            ryl:
+              - *common
+              - *dependencies
+              - "**/*.{yaml,yml}"
+              - .ryl.toml
+  jactionlint:
+    name: jactionlint
+    if: ${{ always() && !failure() && !cancelled() &&
+      (needs.changed-files.result == 'skipped' || needs.changed-files.outputs.jactionlint == 'true') }}
+    needs: changed-files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: jactionlint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Run jactionlint
+        run: jactionlint --format=github --color
+        shell: bash
+  build:
+    name: Build
+    if: ${{ always() && !failure() && !cancelled() &&
+      (needs.changed-files.result == 'skipped' || needs.changed-files.outputs.rust == 'true') }}
+    needs: changed-files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: mr-boxington
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Set up mr boxington
+        uses: jdx/mr-boxington-action@v1.7.3
+      - name: Run Build
+        run: mbx build --locked
+        shell: bash
+  clippy:
+    name: Clippy
+    if: ${{ always() && !failure() && !cancelled() &&
+      (needs.changed-files.result == 'skipped' || needs.changed-files.outputs.rust == 'true') }}
+    needs: changed-files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: mr-boxington
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Set up mr boxington
+        uses: jdx/mr-boxington-action@v1.7.3
+      - name: Run Clippy
+        run: mbx clippy -- -D warnings
+        shell: bash
+  commitlint:
+    name: commitlint
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: npm:@commitlint/cli
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 50 # Assume PRs are less than 50 commits
+          filter: blob:none
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Validate all commits from PR
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+        shell: bash
+  editorconfig:
+    name: EditorConfig
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: editorconfig-checker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Run EditorConfig checker
+        run: editorconfig-checker
+        shell: bash
+  oxfmt:
+    name: Oxfmt
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: oxfmt
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Run Oxfmt
+        run: oxfmt --check
+        shell: bash
+  rustfmt:
+    name: rustfmt
+    if: ${{ always() && !failure() && !cancelled() &&
+      (needs.changed-files.result == 'skipped' || needs.changed-files.outputs.rust == 'true') }}
+    needs: changed-files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: mr-boxington
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Set up mr boxington
+        uses: jdx/mr-boxington-action@v1.7.3
+      - name: Run rustfmt
+        run: mbx fmt --check
+        shell: bash
+  ryl:
+    name: ryl
+    if: ${{ always() && !failure() && !cancelled() &&
+      (needs.changed-files.result == 'skipped' || needs.changed-files.outputs.ryl == 'true') }}
+    needs: changed-files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: aqua:owenlamont/ryl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ env.MISE_ENABLE_TOOLS }}
+      - name: Run ryl
+        run: ryl --format=github --strict .
+        shell: bash
+  shear:
+    name: Shear
+    if: ${{ always() && !failure() && !cancelled() &&
+      (needs.changed-files.result == 'skipped' || needs.changed-files.outputs.rust == 'true') }}
+    needs: changed-files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: cargo:cargo-shear,mr-boxington
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ github.job }}
+      - name: Set up mr boxington
+        uses: jdx/mr-boxington-action@v1.7.3
+      - name: Run Shear
+        run: mbx shear --deny-warnings
+        shell: bash
+  test:
+    name: Test
+    if: ${{ always() && !failure() && !cancelled() &&
+      (needs.changed-files.result == 'skipped' || needs.changed-files.outputs.rust == 'true') }}
+    needs: changed-files
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      MISE_ENABLE_TOOLS: cargo:cargo-nextest,mr-boxington
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up mise
+        uses: jdx/mise-action@v5.2.4
+        with:
+          cache_key_prefix: mise-v1-${{ github.job }}
+      - name: Set up mr boxington
+        uses: jdx/mr-boxington-action@v1.7.3
+      - name: Run Test
+        run: mbx nextest run --locked --no-tests=warn
+        shell: bash
